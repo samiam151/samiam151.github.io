@@ -14,7 +14,7 @@ var $ = function(sel){return document.querySelector(sel);},
 
 var sizes = {
    width: 960,
-   height: 1850,
+   height: 2450,
    padding: 30
 };
 
@@ -30,7 +30,7 @@ var svg  = d3.select('#chart')
    ;
 
 var sankey = d3.sankey()
-   .nodeWidth(35)
+   .nodeWidth(15)
    .nodePadding(15)
    .size([sizes.width - sizes.padding, sizes.height - sizes.padding])
    ;
@@ -42,8 +42,6 @@ d3.csv('data/DCPS_Master_114_sankey.csv', function(csv){
     csvData = csv; 
     maxExpend = d3.max(csv, function(d){ return +d.MajorExp9815; });
     minExpend = d3.min(csv, function(d){ return +d.MajorExp9815; });
-
-    console.log(minExpend, maxExpend);
     var toScale = d3.scale.linear().domain([+minExpend, +maxExpend]).rangeRound([0, sizes.h]);
 
     d3.json("scripts/data.json", function(data){
@@ -96,8 +94,8 @@ d3.csv('data/DCPS_Master_114_sankey.csv', function(csv){
              .attr("text-anchor", "end")
              .attr("transform", null)
              .text(function(d) { 
-                console.log(d);
-                return d.name + " = " + d.MajorExp9815; 
+                
+                return d.name; 
              })
            .filter(function(d) { return d.x < sizes.width / 2; })
              .attr("x", 6 + sankey.nodeWidth())
