@@ -188,16 +188,17 @@ d3.csv('data/DCPS_Master_114_sankey.csv', function(data){
             } 
         }
 
-        // SET VALUE 
-        // For every middle school, get the value of all the elementary schools that feed into it        
+        // SET VALUE // For every middle school, get the value of all the elementary schools that feed into it
+        
         // Get the pattern number from the middle school
+        var pattern = middleSchools[m].FeederMSNum;
+        
         // Loop through all the elementary schools to find the ones with that same pattern, and add the values
-        // Assign that value to tempObj.value
-
-        var pattern = middleSchools[m].FeederMSNum;  
         var value = elementarySchools.filter(function(item){ if(item.FeederMSNum === pattern){ return item; }})
                                      .map(function(item){ return toScale(item.MajorExp9815); })
                                      .reduce(function(prev, curr){return prev + curr;});
+        console.log(value);
+        // Assign that value to tempObj.value
 
         tempObj.value = value;
         links.push(tempObj);
@@ -284,5 +285,69 @@ d3.csv('data/DCPS_Master_114_sankey.csv', function(data){
         }
         return totalExpenditures;
     }  
+
+    // Return =s 
+    function elementary9815Expenditure(){
+        var i = 0,
+            j = elementarySchools.length,
+            sum = 0;
+        for(; i < j; i++){
+            if(typeof parseInt(elementarySchools[i].MajorExp9815) === "number"){
+                sum += parseInt(elementarySchools[i].MajorExp9815);
+            }
+        }
+        return sum;
+    }
+
+    getAllFeederTotals(elementarySchools);
+
+
+    function getAllFeederTotals(schoolsArray){
+        var values = {},
+            msValues = [],
+            hsValues = [],
+            i = 0,
+            j = schoolsArray.length;
+        for(; i < j; i++){
+            msValues.push(computeValues(schoolsArray, true, i));
+        }
+
+        values.ms = msValues;
+        values.hs = hsValues;
+
+        // RETURNS: total toScale value of the schools in a given feeder pattern
+        // EXPECTS: a school array, the FeederMSNum or FeederHSNum column in the CSV, and the pattern number in
+        //          that column
+        function computeValues(schools, isMS, feederPatternNumber){
+            var value = 0,
+                i = 0,
+                j = schools.length,
+                column = isMS ? 'FeederMSNum' : 'FeederHSNum';
+            for(; i < j; i++){
+                if(+schools[i][column] === feederPatternNumber){
+                    value += toScale(parseInt(schools[i]['MajorExp9815']));
+                }
+            }
+            return value;
+        }
+
+        return values;
+    }
+
+    // RETURNS: total toScale value of the schools in a given feeder pattern
+    // EXPECTS: a school array, the FeederMSNum or FeederHSNum column in the CSV, and the pattern number in
+    //          that column
+    function computeValues(schools, isMS, feederPatternNumber){
+        var value = 0,
+            i = 0,
+            j = schools.length,
+            column = isMS ? 'FeederMSNum' : 'FeederHSNum';
+        for(; i < j; i++){
+            if(+schools[i][column] === feederPatternNumber){
+                value += toScale(parseInt(schools[i]['MajorExp9815']));
+            }
+        }
+        return value;
+    }
 
 });
