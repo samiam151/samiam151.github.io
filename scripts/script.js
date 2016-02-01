@@ -47,7 +47,6 @@ d3.csv('data/DCPS_Master_114_sankey.csv', function(csv){
     var toScale = d3.scale.linear().domain([+minExpend, +maxExpend]).rangeRound([0, sizes.h]);
 
     d3.json("scripts/data.json", function(data){
-      console.log(data);
        sankey
           .nodes(data.nodes)
           .links(data.links)
