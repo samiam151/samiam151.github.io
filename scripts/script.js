@@ -1,268 +1,86 @@
-// **************************************
-// FORMATTING
-// **************************************
+var diameter = 760,
+    format = d3.format(",d"),
+    color = d3.scale.category20c();
 
-var $ = function(sel){return document.querySelector(sel);},
-    $$ = function(sel){return document.querySelectorAll(sel);},
-   asMoney = d3.format('$,.2f'),
-   asPercent = d3.format('%'),
-   maxExpend, minExpend,
-   maxFutureSpend, minFutureSpend;
+var bubble = d3.layout.pack()
+    .sort(null)
+    .size([diameter, diameter])
+    // .radius(function(){return '20';})
+    // .padding(1.5)
+    ;
 
-// **************************************
-// SVG SETUP
-// **************************************
+var svg = d3.select("#chart").append("svg")
+    .attr("width", diameter)
+    .attr("height", diameter)
+    .attr("class", "bubble");
 
-var sizes = {
-   width: 960,
-   height: 2450,
-   padding: 30
-};
+d3.json("scripts/json/data.json", function(error, root) {
+  if (error) throw error;
 
-var formatNumber = d3.format(",.0f"),
-    asMoney = d3.format("$,.2f");
-    format = function(d) { return "$" + formatNumber(d); };
-    // color = d3.scale.category10();
+  var force = d3.layout.force();
+  var node = svg.selectAll(".node")
+      .data(bubble.nodes(classes(root))
+      .filter(function(d) { return !d.children; }))
+    .enter().append("g")
+      .attr("class", "node")
+      .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
 
-var svg  = d3.select('#chart')
-   .append('svg')
-   .attr('width', sizes.width)
-   .attr('height', sizes.height)
-   ;
+  node.append("title")
+      .text(function(d) { return d.className + ": " + format(d.value); });
 
-var sankey = d3.sankey()
-   .nodeWidth(15)
-   .nodePadding(15)
-   .size([sizes.width - sizes.padding, sizes.height - sizes.padding])
-   ;
+  node.append("circle")
+      // .transition()
+      // .duration(500)
+      .attr("r", function(d) { 
+        var r_scale = d3.scale.linear().domain([0, 117015598]).rangeRound([10,100]);
+        return r_scale(d.value);
+      })
+      .style("fill", function(d) {
+        return getColor(d.value);
+      })
+      .on('mouseenter', function(){
+        this.style.fill = 'gray';
+      })
+      .on('mouseleave', function(d){
+        this.style.fill = getColor(d.value);
+      })
 
-var path = sankey.link(),
-    csvData;
+      ;
 
-d3.csv('data/DCPS_Master_114_sankey.csv', function(csv){ 
-    csvData = csv; 
-    maxExpend = d3.max(csv, function(d){ return +d.MajorExp9815; });
-    minExpend = d3.min(csv, function(d){ return +d.MajorExp9815; });
+  node.append("text")
+      .attr("dy", ".3em")
+      .style("text-anchor", "middle")
+      .text(function(d) { return d.className.substring(0, d.r / 3); });
 
-    var toScale = d3.scale.linear().domain([+minExpend, +maxExpend]).rangeRound([0, sizes.h]);
-
-    d3.json("scripts/data.json", function(data){
-       sankey
-          .nodes(data.nodes)
-          .links(data.links)
-          .layout(32);
-
-       var link = svg.append('g')
-          .selectAll('.links')
-          .data(data.links)
-          .enter()
-          .append('path')
-
-          // .link
-          .attr('class', 'link')
-          .attr('d', path)
-          .style("stroke-width", function(d) { return Math.max(1, d.dy); })
-          .sort(function(a, b) { return b.dy - a.dy; });
-          ;   
-
-       link.append("title")
-          .text(function(d) { return d.source.name + " → " + d.target.name + "\n" + format(d.value); });
-
-       var node = svg.append("g").selectAll(".node")
-          .data(data.nodes)
-          .enter()
-          .append("g")
-          
-          // node
-          .attr("class", "node")
-          .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; })
-          .call(d3.behavior.drag()
-          .origin(function(d) { return d; })
-          .on("dragstart", function() { this.parentNode.appendChild(this); })
-          .on("drag", dragmove));
-          ;
-
-       // rect
-       node.append("rect")
-          .attr("height", function(d) { return d.dy; }) //d.dy
-          .attr("width", sankey.nodeWidth())
-          // .style("fill", function(d) { return d.color = color(d.name.replace(/ .*/, "")); })
-          .style("stroke", function(d) { return d3.rgb(d.color).darker(1); })
-          .style('fill', function(d){
-             return 'green';
-          })
-          .append("title")
-          .text(function(d) { return d.name + "\n" + format(d.value); });
-      
-         node.append("text")
-             .attr("x", -6)
-             .attr("y", function(d) { return d.dy / 2; })
-             .attr("dy", ".35em")
-             .attr("text-anchor", "end")
-             .attr("transform", null)
-             .text(function(d) { 
-                
-                return d.name; 
-             })
-           .filter(function(d) { return d.x < sizes.width / 2; })
-             .attr("x", 6 + sankey.nodeWidth())
-             .attr("text-anchor", "start");
-
-         function dragmove(d) {
-           d3.select(this).attr("transform", "translate(" + d.x + "," + (d.y = Math.max(0, Math.min(sizes.height - d.dy, d3.event.y))) + ")");
-           sankey.relayout();
-           link.attr("d", path);
-         }
-
-        // **************************************
-        // TRANSITIONS
-        // **************************************
-        // Aiton Elementary School
-        d3.select($('#future'))
-            .on('click', function(){
-                d3.json("scripts/json_update.json", function(newdata){
-                    // var path = sankey.link();
-                    sankey
-                      .nodes(newdata.nodes)
-                      .links(newdata.links)
-                      .layout(32);
-
-                    // .link
-                    d3.selectAll('.link')
-                      .data(newdata.links)
-                      .transition()
-                      .duration(350)
-                    ;
-
-                    d3.selectAll('.link')
-                      .data(newdata.links)
-                      .transition()
-                      .duration(350) 
-                      .attr('d', path)
-                      .style("stroke-width", function(d) { 
-                         return Math.max(1, d.dy); 
-                      })
-                      .sort(function(a, b) { return b.dy - a.dy; })
-                    ;
-
-                    // .node
-                    console.log(d3.selectAll('.node'));
-                    d3.selectAll('.node')
-                      .data(newdata.nodes)
-                      .transition()
-                      .duration(350)
-                      .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; })
-                      // .call(d3.behavior.drag()
-                      //   .origin(function(d) { return d; })
-                      //   .on("dragstart", function() { this.parentNode.appendChild(this); })
-                      //   .on("drag", dragmove))
-                    ;
-
-                    // rect
-                    d3.selectAll('rect')
-                      .data(newdata.links) 
-                      .transition()
-                      .duration(350)
-                      .attr("height", function(d) { return d.dy; }) //d.dy
-                    ;
-
-                    d3.selectAll('text')
-                      .data(newdata.nodes)
-                      .transition()
-                      .duration(350)
-                      .attr("y", function(d) { return d.dy / 2; })
-                      .text(function(d) { 
-                          return d.name; 
-                       })
-                      .filter(function(d) { return d.x < sizes.width / 2; })
-                       .attr("x", 6 + sankey.nodeWidth())
-                       .attr("text-anchor", "start")
-                      ;
-
-                    function dragmove(d) {
-                       d3.select(this).attr("transform", "translate(" + d.x + "," + (d.y = Math.max(0, Math.min(sizes.height - d.dy, d3.event.y))) + ")");
-                       sankey.relayout();
-                       link.attr("d", path);
-                    }
-                })
-                ;
-            })
-        ;
-
-        d3.select($('#past'))
-            .on('click', function(){
-                d3.json("scripts/data.json", function(olddata){
-                    var path = sankey.link();
-                    sankey
-                      .nodes(olddata.nodes)
-                      .links(olddata.links)
-                      .layout(32);
-
-                    // .link
-                    d3.selectAll('.link')
-                      .data(olddata.links)
-                      .transition()
-                      .duration(350)
-          //             .attr('d', path)
-          // .style("stroke-width", function(d) { return Math.max(1, d.dy); })
-                    ;
-
-                    d3.selectAll('.link')
-                      .data(olddata.links) 
-                      .transition()
-                      .duration(350)
-                      .attr('d', path)
-                      .style("stroke-width", function(d) { 
-                         return Math.max(1, d.dy); 
-                      })
-                      .sort(function(a, b) { return b.dy - a.dy; })
-                    ;
-
-                    // d3.selectAll('title')
-                    //   .text(function(d) { return d.source.name + " → " + d.target.name + "\n" + format(d.value); });
-
-                    // .node
-                    d3.selectAll('.node')
-                      .data(olddata.nodes)
-                      .transition()
-                      .duration(350)
-                      .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; })
-                      // .call(d3.behavior.drag()
-                      //   .origin(function(d) { return d; })
-                      //   .on("dragstart", function() { this.parentNode.appendChild(this); })
-                      //   .on("drag", dragmove))
-                    ;
-
-                    // rect
-                    d3.selectAll('rect')
-                      .data(olddata.links) 
-                      .transition()
-                      .duration(350)
-                      .attr("height", function(d) { return d.dy; }) //d.dy
-                    ;
-
-                    d3.selectAll('text')
-                      .data(olddata.nodes)
-                      .transition()
-                      .duration(350)
-                      .attr("y", function(d) { return d.dy / 2; })
-                      .text(function(d) { 
-                          return d.name; 
-                       })
-                      .filter(function(d) { return d.x < sizes.width / 2; })
-                       .attr("x", 6 + sankey.nodeWidth())
-                       .attr("text-anchor", "start")
-                      ;
-
-                    function dragmove(d) {
-                       d3.select(this).attr("transform", "translate(" + d.x + "," + (d.y = Math.max(0, Math.min(sizes.height - d.dy, d3.event.y))) + ")");
-                       sankey.relayout();
-                       link.attr("d", path);
-                    }
-                })
-                ;
-            })
-        ;
-    });
-    
 });
+
+// Returns a flattened hierarchy containing all leaf nodes under the root.
+function classes(root) {
+  var classes = [];
+
+  function recurse(name, node) {
+    if (node.children) node.children.forEach(function(child) { recurse(node.name, child); });
+    else classes.push({packageName: name, className: node.name, value: node.size});
+  }
+
+  recurse(null, root);
+  return {children: classes};
+}
+
+// Returns the appropriate color for the value passed into it
+function getColor(the_data){
+    var value = the_data;
+    if(value > 10000000){ // 10 MILLION
+        return '#77cc00';
+    } else if(value < 10000000 && value > 1000000){
+        return '#779900';
+    } else if (value < 1000000 && value > 100000){
+        return '#774400';
+    } else if (value < 100000 && value > 0){
+        return '#771100';
+    } else {
+        return '#aa0000';
+    }
+}
+
+d3.select(self.frameElement).style("height", diameter + "px");
