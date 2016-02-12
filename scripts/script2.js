@@ -1,10 +1,19 @@
 var $ = function(sel){return document.querySelector(sel);},
-    $_all = function(sel){return document.querySelectorAll(sel);};
+    $_all = function(sel){return document.querySelectorAll(sel);},
+    asMoney = d3.format('$,.2f')
+    ;
 
 d3.csv('data/data.csv', function (error, data) {
 
+    // var year_centers = {
+    //       "2008": {name:"2008", x: 150, y: 300},
+    //       "2009": {name:"2009", x: 550, y: 300},
+    //       "2010": {name:"2010", x: 900, y: 300}
+    //     }
+    // var all_center = { "all": {name:"All Grants", x: 500, y: 300}};
+
     var width = 1000,
-        height = 900;
+        height = 800;
     
     var svg = d3.select("#chart")
         .append("svg")
@@ -13,7 +22,7 @@ d3.csv('data/data.csv', function (error, data) {
 
     var minExpend = d3.min(data, function(d){return +d.MajorExp9815;}),
         maxExpend = d3.max(data, function(d){return +d.MajorExp9815;}),
-        toScale = d3.scale.linear().domain([minExpend, maxExpend]).rangeRound([5, 30]);
+        toScale = d3.scale.linear().domain([minExpend, maxExpend]).rangeRound([5, 20]);
 
     for (var j = 0; j < data.length; j++) {
         data[j].radius = 10;
@@ -36,21 +45,42 @@ d3.csv('data/data.csv', function (error, data) {
         'stroke': 'black',
         'stroke-width': 1
       })
-      // .on("mouseover", function (d) { showPopover.call(this, d); })
-      // .on("mouseout", function (d) { removePopovers(); })
+      .on('mouseover', function(d){
+
+        // GET THE X/Y COOD OF OBJECT
+        var xPosition = d3.select(this)[0][0]['cx'].animVal.value,
+            yPosition = d3.select(this)[0][0]['cy'].animVal.value,
+            tooltipPadding = 15;
+
+        // FORMAT THE TOOLTIP, INSERT TEXT
+        d3.select('#tooltip')
+            .style('left', xPosition + 'px')
+            .style('top', yPosition + 'px');
+        d3.select('#school')
+            .text('School: ' + d.School);
+        d3.select('#expPast')
+            .text('Past Spending: ' + asMoney(d.MajorExp9815));
+        d3.select('#ward')
+            .text('Ward: ' + d.Ward);
+        
+        // SHOW THE TOOLTIP
+        d3.select('#tooltip').classed('hidden', false);
+
+      })
+      .on('mouseout', function(){
+        // HIDE THE TOOLTIP
+        d3.select('#tooltip').classed('hidden', true);
+      })
       ;
 
     nodes
         .transition()
-        .duration(5000)
-        // .attr("r", function (d) { 
-        //     return d.radius; 
-        // })
+        .duration(3000)
         .attr('r', function(d){
             if(+d.MajorExp9815 && d.MajorExp9815 !== 'NA'){
                 return toScale(+d.MajorExp9815)
             } else {
-                return '10';
+                return '3';
             }
         })
         ;
@@ -74,7 +104,14 @@ d3.csv('data/data.csv', function (error, data) {
       force.on("tick", tick(centers, varname));
       labels(centers)
       force.start();
-    }                                  
+    }    
+
+    // function draw (varname) {
+    //       var foci = varname === "all" ? all_center: year_centers;
+    //       force.on("tick", tick(foci, varname));
+    //       labels(foci)
+    //       force.start();
+    //     }                              
 
     // Returns an array of UNIQUE objects that have the given column name
     function getCenters(vname, size) {
@@ -102,7 +139,7 @@ d3.csv('data/data.csv', function (error, data) {
           o.y += (f.y - o.y) * e.alpha;
           o.x += (f.x - o.x) * e.alpha;
         }
-        nodes.each(collide(.07))
+        nodes.each(collide(.45))
           .attr("cx", function (d) { return d.x; })
           .attr("cy", function (d) { return d.y; });
       }
@@ -121,39 +158,21 @@ d3.csv('data/data.csv', function (error, data) {
     }
 
     function getColor(the_data){
-        var value = the_data;
+        var value = the_data,
+            colors = ['#77cc00', '#779900', '#774400', '#771100', '#aa0000'];
+
         if(value > 10000000){ // 10 MILLION
-            return '#77cc00';
+            return colors[0];
         } else if(value < 10000000 && value > 1000000){
-            return '#779900';
+            return colors[1];
         } else if (value < 1000000 && value > 100000){
-            return '#774400';
+            return colors[2];
         } else if (value < 100000 && value > 0){
-            return '#771100';
+            return colors[3];
         } else {
-            return '#aa0000';
+            return colors[4];
         }
     }
-
-    // function removePopovers () {
-    //   $('.popover').each(function() {
-    //     $(tophis).remove();
-    //   }); 
-    // }
-
-    // function showPopover (d) {
-    //   $(this).popover({
-    //     placement: 'auto top',
-    //     container: 'body',
-    //     trigger: 'manual',
-    //     html : true,
-    //     content: function() { 
-    //         console.log(d);
-    //       return "Level: " + d.Level + "<br/>School: " + d.School + "<br/>Ward: " + d.Ward +
-    //              "<br/>Exp: " + d.MajorExp9815 + "<br/>MPG: " + d.comb; }
-    //   });
-    //   $(this).popover('show')
-    // }
 
     function collide(alpha) {
       var quadtree = d3.geom.quadtree(data);
@@ -182,3 +201,23 @@ d3.csv('data/data.csv', function (error, data) {
       };
     }
 });
+
+// function removePopovers () {
+//   $('.popover').each(function() {
+//     $(tophis).remove();
+//   }); 
+// }
+
+// function showPopover (d) {
+//   $(this).popover({
+//     placement: 'auto top',
+//     container: 'body',
+//     trigger: 'manual',
+//     html : true,
+//     content: function() { 
+//         console.log(d);
+//       return "Level: " + d.Level + "<br/>School: " + d.School + "<br/>Ward: " + d.Ward +
+//              "<br/>Exp: " + d.MajorExp9815 + "<br/>MPG: " + d.comb; }
+//   });
+//   $(this).popover('show')
+// }
