@@ -1,18 +1,15 @@
+'use strict';
+// CUSTOM
 var $ = function(sel){return document.querySelector(sel);},
     $_all = function(sel){return document.querySelectorAll(sel);},
     asMoney = d3.format('$,.2f')
     ;
 
 d3.csv('data/data.csv', function (error, data) {
-
-    // var year_centers = {
-    //       "2008": {name:"2008", x: 150, y: 300},
-    //       "2009": {name:"2009", x: 550, y: 300},
-    //       "2010": {name:"2010", x: 900, y: 300}
-    //     }
-    // var all_center = { "all": {name:"All Grants", x: 500, y: 300}};
-
-    var width = 1000,
+    //*******************************************************
+    // Setup SVG
+    //*******************************************************
+    var width = 1200,
         height = 800;
     
     var svg = d3.select("#chart")
@@ -20,18 +17,25 @@ d3.csv('data/data.csv', function (error, data) {
         .attr("width", width)
         .attr("height", height);
 
+    //*******************************************************
+    // Scales
+    //*******************************************************
     var minExpend = d3.min(data, function(d){return +d.MajorExp9815;}),
         maxExpend = d3.max(data, function(d){return +d.MajorExp9815;}),
-        toScale = d3.scale.linear().domain([minExpend, maxExpend]).rangeRound([5, 20]);
+        toScale = d3.scale.linear().domain([minExpend, maxExpend]).rangeRound([10, 30]);
 
     for (var j = 0; j < data.length; j++) {
         data[j].radius = 10;
         data[j].x = Math.random() * (width);
         data[j].y = Math.random() * (height);
     }
-    var padding = 4;
-    var maxRadius = d3.max(_.pluck(data, 'radius'));
+    var padding = 15,
+        maxRadius = d3.max(_.pluck(data, 'radius')),
+        padding_between_nodes = .17;
 
+    //*******************************************************
+    // Setup CIRCLES
+    //*******************************************************
     // creates circles and puts them in the starting position
     var nodes = svg.selectAll("circle")
       .data(data)  
@@ -45,29 +49,44 @@ d3.csv('data/data.csv', function (error, data) {
         'stroke': 'black',
         'stroke-width': 1
       })
-      .on('mouseover', function(d){
+
+
+        //*******************************************************
+        // Circles: mousenter
+        //*******************************************************
+      .on('mouseenter', function(d){
 
         // GET THE X/Y COOD OF OBJECT
-        var xPosition = d3.select(this)[0][0]['cx'].animVal.value,
-            yPosition = d3.select(this)[0][0]['cy'].animVal.value,
-            tooltipPadding = 15;
+        var tooltipPadding = 30,
+            xPosition = d3.select(this)[0][0]['cx'].animVal.value - tooltipPadding,
+            yPosition = d3.select(this)[0][0]['cy'].animVal.value - tooltipPadding;
 
         // FORMAT THE TOOLTIP, INSERT TEXT
         d3.select('#tooltip')
             .style('left', xPosition + 'px')
             .style('top', yPosition + 'px');
-        d3.select('#school')
-            .text('School: ' + d.School);
-        d3.select('#expPast')
-            .text('Past Spending: ' + asMoney(d.MajorExp9815));
-        d3.select('#ward')
-            .text('Ward: ' + d.Ward);
         
+        d3.select('#school').text('School: ' + camel(d.School));
+        d3.select('#expPast').text('Past Spending: ' + asMoney(d.MajorExp9815));
+        d3.select('#ward').text('Ward: ' + d.Ward);
+        
+        if(d.FeederHS){
+            d3.select('#hs').text('HS: ' + d.FeederHS);
+        }
+        if(d.FeederMS){
+            d3.select('#ms').text('MS: ' + d.FeederMS);
+        }
+        
+
+
         // SHOW THE TOOLTIP
         d3.select('#tooltip').classed('hidden', false);
-
       })
-      .on('mouseout', function(){
+
+        //*******************************************************
+        // Circles: mousenter
+        //*******************************************************
+      .on('mouseleave', function(){
         // HIDE THE TOOLTIP
         d3.select('#tooltip').classed('hidden', true);
       })
@@ -75,7 +94,7 @@ d3.csv('data/data.csv', function (error, data) {
 
     nodes
         .transition()
-        .duration(3000)
+        .duration(5000)
         .attr('r', function(d){
             if(+d.MajorExp9815 && d.MajorExp9815 !== 'NA'){
                 return toScale(+d.MajorExp9815)
@@ -85,34 +104,35 @@ d3.csv('data/data.csv', function (error, data) {
         })
         ;
 
-    var force = d3.layout.force();
+    var force = d3.layout.force().gravity(50);
 
+    //*******************************************************
+    // Set initial state of graph
+    //*******************************************************    
     draw('Agency');
-    $_all('.btn').forEach(function(item){
+
+
+    //*******************************************************
+    // Add interactivity to Subdivider Buttons
+    //*******************************************************
+    var btns = Array.prototype.slice.call($_all('.btn'));
+    btns.forEach(function(item, e){
         item.addEventListener('click', function(e){
-            console.log(e.target.id);
             draw(e.target.id);
         });
     });
 
-// $( ".btn" ).click(function() {
-//   draw(this.id);
-// });
 
+    //****************************************
+    // UTILITY FUNCTIONS
+    //****************************************
     function draw (varname) {
       var centers = getCenters(varname, [800, 800]);
       force.on("tick", tick(centers, varname));
       labels(centers)
       force.start();
     }    
-
-    // function draw (varname) {
-    //       var foci = varname === "all" ? all_center: year_centers;
-    //       force.on("tick", tick(foci, varname));
-    //       labels(foci)
-    //       force.start();
-    //     }                              
-
+    
     // Returns an array of UNIQUE objects that have the given column name
     function getCenters(vname, size) {
           var centers, map;
@@ -139,7 +159,7 @@ d3.csv('data/data.csv', function (error, data) {
           o.y += (f.y - o.y) * e.alpha;
           o.x += (f.x - o.x) * e.alpha;
         }
-        nodes.each(collide(.45))
+        nodes.each(collide(padding_between_nodes))
           .attr("cx", function (d) { return d.x; })
           .attr("cy", function (d) { return d.y; });
       }
@@ -158,19 +178,17 @@ d3.csv('data/data.csv', function (error, data) {
     }
 
     function getColor(the_data){
-        var value = the_data,
-            colors = ['#77cc00', '#779900', '#774400', '#771100', '#aa0000'];
-
+        var value = the_data;
         if(value > 10000000){ // 10 MILLION
-            return colors[0];
+            return '#77cc00';
         } else if(value < 10000000 && value > 1000000){
-            return colors[1];
+            return '#779900';
         } else if (value < 1000000 && value > 100000){
-            return colors[2];
+            return '#774400';
         } else if (value < 100000 && value > 0){
-            return colors[3];
+            return '#771100';
         } else {
-            return colors[4];
+            return '#aa0000';
         }
     }
 
@@ -200,24 +218,37 @@ d3.csv('data/data.csv', function (error, data) {
         });
       };
     }
+
+    function getColor(the_data){
+        var value = the_data;
+        if(value > 10000000){ // 10 MILLION
+            return '#77cc00';
+        } else if(value < 10000000 && value > 1000000){
+            return '#779900';
+        } else if (value < 1000000 && value > 100000){
+            return '#774400';
+        } else if (value < 100000 && value > 0){
+            return '#771100';
+        } else {
+            return '#aa0000';
+        }
+    }
+
+    function camel(str){
+      var camelStr = [],
+          strSplit = str.split(' '),
+          i =0, j = strSplit.length;
+      for (; i < j; i++){
+        var splitWord = strSplit[i].split('');
+        for(var m = 0, n = splitWord.length; m<n; m++){
+          var letter = splitWord[0],
+              upperLetter = letter.toUpperCase();
+          splitWord.shift();
+          splitWord.unshift(upperLetter);
+        }
+        camelStr.push(splitWord.join(''));
+      }
+      
+      return camelStr.join(' ');
+    }
 });
-
-// function removePopovers () {
-//   $('.popover').each(function() {
-//     $(tophis).remove();
-//   }); 
-// }
-
-// function showPopover (d) {
-//   $(this).popover({
-//     placement: 'auto top',
-//     container: 'body',
-//     trigger: 'manual',
-//     html : true,
-//     content: function() { 
-//         console.log(d);
-//       return "Level: " + d.Level + "<br/>School: " + d.School + "<br/>Ward: " + d.Ward +
-//              "<br/>Exp: " + d.MajorExp9815 + "<br/>MPG: " + d.comb; }
-//   });
-//   $(this).popover('show')
-// }
