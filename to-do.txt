@@ -1,0 +1,14 @@
+- Add charter schools to csv
+- Subdivide by Agency (DCPS and PCS)
+- Figure out doing logic on csv columns in Python
+/ SVG Tooltips
+/ Plan all subdivides
+
+Physics:
+   make group spread out
+   make them all move slower
+fix the colors
+
+******************************************************
+- todo still
+/ done
