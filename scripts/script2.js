@@ -1,37 +1,52 @@
 'use strict';
+
 // CUSTOM
 var $ = function(sel){return document.querySelector(sel);},
     $_all = function(sel){return document.querySelectorAll(sel);},
-    asMoney = d3.format('$,.2f')
+    asMoney = d3.format('$,')
     ;
 
-d3.csv('data/data.csv', function (error, data) {
+// function Bubble(dataset){
+    // $('#title').innerText = dataset;
+
+d3.csv('data/data_master.csv', function (error, data) {
+// d3.csv('data/DC_Bubbles_Master_214.csv', function (error, data) {
     //*******************************************************
     // Setup SVG
     //*******************************************************
     var width = 1200,
         height = 800;
-    
+
     var svg = d3.select("#chart")
         .append("svg")
         .attr("width", width)
         .attr("height", height);
 
+
     //*******************************************************
     // Scales
     //*******************************************************
-    var minExpend = d3.min(data, function(d){return +d.MajorExp9815;}),
-        maxExpend = d3.max(data, function(d){return +d.MajorExp9815;}),
-        toScale = d3.scale.linear().domain([minExpend, maxExpend]).rangeRound([10, 30]);
+        //Past
+    var minExpendPast = d3.min(data, function(d){ return +(d.MajorExp9815); }),
+        maxExpendPast = d3.max(data, function(d){ return +(d.MajorExp9815); }),
+        toScalePast = d3.scale.linear().domain([minExpendPast, maxExpendPast]).rangeRound([5, 25]),
+        // Lifetime
+        minExpendLife = d3.min(data, function(d){ return +(d.LifetimeBudget); }),
+        maxExpendLife = d3.max(data, function(d){ return +(d.LifetimeBudget); }),
+        toScaleLife = d3.scale.linear().domain([minExpendPast, maxExpendPast]).rangeRound([5, 25]),
+        // Future
+        minExpendFuture = d3.min(data, function(d){ return +(d.TotalAllotandPlan1621); }),
+        maxExpendFuture = d3.max(data, function(d){ return +(d.TotalAllotandPlan1621); }),
+        toScaleFuture = d3.scale.linear().domain([minExpendFuture, maxExpendFuture]).rangeRound([5, 25]);
 
     for (var j = 0; j < data.length; j++) {
         data[j].radius = 10;
         data[j].x = Math.random() * (width);
         data[j].y = Math.random() * (height);
     }
-    var padding = 15,
+    var padding = 10,
         maxRadius = d3.max(_.pluck(data, 'radius')),
-        padding_between_nodes = .17;
+        padding_between_nodes = .05;
 
     //*******************************************************
     // Setup CIRCLES
@@ -45,9 +60,10 @@ d3.csv('data/data.csv', function (error, data) {
       .attr("cy", function (d) { return d.y; })
       .attr("r", 2)
       .style({
-        'fill': function (d) { return getColor(d.MajorExp9815);},
+        'fill': function (d) { return getColor(d.MajorExp9815, 'past');},
         'stroke': 'black',
-        'stroke-width': 1
+        'stroke-width': 1,
+        'opacity': 0.8
       })
 
 
@@ -60,44 +76,49 @@ d3.csv('data/data.csv', function (error, data) {
         var tooltipPadding = 30,
             xPosition = d3.select(this)[0][0]['cx'].animVal.value - tooltipPadding,
             yPosition = d3.select(this)[0][0]['cy'].animVal.value - tooltipPadding;
-
-        // FORMAT THE TOOLTIP, INSERT TEXT
-        d3.select('#tooltip')
-            .style('left', xPosition + 'px')
-            .style('top', yPosition + 'px');
         
+        // TOOLTIP INFO
         d3.select('#school').text('School: ' + camel(d.School));
-        d3.select('#expPast').text('Past Spending: ' + asMoney(d.MajorExp9815));
+        d3.select('#agency').text('Agency: ' + d.Agency);
         d3.select('#ward').text('Ward: ' + d.Ward);
-        
-        if(d.FeederHS){
-            d3.select('#hs').text('HS: ' + d.FeederHS);
+        if(d.ProjectType && d.ProjectType !== 'NA'){
+            d3.select('#project').text('Project: ' + d.ProjectType);
+        } else {
+            d3.select('#project').text('');
         }
-        if(d.FeederMS){
-            d3.select('#ms').text('MS: ' + d.FeederMS);
+        if(d.YrComplete && d.YrComplete !== 'NA'){
+            d3.select('#yearComplete').text('Year Completed: ' + d.YrComplete);
+        } else {
+            d3.select('#yearComplete').text('');
+        }
+        d3.select('#majorexp').text('Total Spent: ' + asMoney(d.MajorExp9815));
+        d3.select('#spent_sqft').text('Spent per Sq.Ft.: ' + asMoney(d.SpentPerSqFt) + '/sq. ft.');
+        d3.select('#expPast').text('Spent per Maximum Occupancy: ' + asMoney(d.SpentPerMaxOccupancy));
+        if(d.FeederHS && d.FeederHS !== "NA"){
+            d3.select('#hs').text('High School: ' + d.FeederHS);
+        } else {
+            d3.select('#hs').text('');
         }
         
-
-
-        // SHOW THE TOOLTIP
-        d3.select('#tooltip').classed('hidden', false);
+        // d3.select(this)[0][0].style.fill = 'gray';
+        d3.select(this).classed('color', true);
       })
 
         //*******************************************************
         // Circles: mousenter
         //*******************************************************
       .on('mouseleave', function(){
-        // HIDE THE TOOLTIP
-        d3.select('#tooltip').classed('hidden', true);
+        d3.select(this).classed('color', false);
+
       })
       ;
 
     nodes
         .transition()
-        .duration(5000)
+        .duration(10000)
         .attr('r', function(d){
             if(+d.MajorExp9815 && d.MajorExp9815 !== 'NA'){
-                return toScale(+d.MajorExp9815)
+                return toScalePast(+d.MajorExp9815)
             } else {
                 return '3';
             }
@@ -116,12 +137,83 @@ d3.csv('data/data.csv', function (error, data) {
     // Add interactivity to Subdivider Buttons
     //*******************************************************
     var btns = Array.prototype.slice.call($_all('.btn'));
+    console.log(btns);
+
     btns.forEach(function(item, e){
         item.addEventListener('click', function(e){
             draw(e.target.id);
         });
     });
 
+    //*******************************************************
+    // Changing datasets
+    //*******************************************************
+    d3.select('#future')
+        .on('click', function(d){
+            nodes
+            .transition()
+            .duration(1000)
+            .attr('r', function(d){
+                if(+d.TotalAllotandPlan1621 && d.TotalAllotandPlan1621 !== 'NA'){
+                    return toScaleFuture(+d.TotalAllotandPlan1621)
+                } else {
+                    return '3';
+                }
+            })
+            .style({
+                'fill': function (d) { return getColor(d.TotalAllotandPlan1621, 'future');},
+                'stroke': 'black',
+                'stroke-width': 1,
+                'opacity': 0.8
+            });
+
+            $('#budget_state').innerText = 'Planned Expenditures for 2016 - 2021';
+        })
+    ;
+    d3.select('#past')
+        .on('click', function(d){
+            nodes
+            .transition()
+            .duration(1000)
+            .attr('r', function(d){
+                if(+d.MajorExp9815 && d.MajorExp9815 !== 'NA'){
+                    return toScalePast(+d.MajorExp9815)
+                } else {
+                    return '3';
+                }
+            })
+            .style({
+                'fill': function (d) { return getColor(d.MajorExp9815, 'past');},
+                'stroke': 'black',
+                'stroke-width': 1,
+                'opacity': 0.8
+            });
+
+            $('#budget_state').innerText = 'Expenditures from 1985 - 2015';
+        })
+    ;
+    d3.select('#lifetime')
+        .on('click', function(d){
+            nodes
+            .transition()
+            .duration(1000)
+            .attr('r', function(d){
+                if(+d.LifetimeBudget && d.LifetimeBudget !== 'NA'){
+                    return toScaleLife(+d.LifetimeBudget)
+                } else {
+                    return '3';
+                }
+            })
+            .style({
+                'fill': function (d) { return getColor(d.LifetimeBudget, 'total');},
+                'stroke': 'black',
+                'stroke-width': 1,
+                'opacity': 0.8
+            });
+
+            $('#budget_state').innerText = 'Lifetime Budget';
+        })
+    ;
 
     //****************************************
     // UTILITY FUNCTIONS
@@ -177,21 +269,6 @@ d3.csv('data/data.csv', function (error, data) {
       });
     }
 
-    function getColor(the_data){
-        var value = the_data;
-        if(value > 10000000){ // 10 MILLION
-            return '#77cc00';
-        } else if(value < 10000000 && value > 1000000){
-            return '#779900';
-        } else if (value < 1000000 && value > 100000){
-            return '#774400';
-        } else if (value < 100000 && value > 0){
-            return '#771100';
-        } else {
-            return '#aa0000';
-        }
-    }
-
     function collide(alpha) {
       var quadtree = d3.geom.quadtree(data);
       return function(d) {
@@ -219,8 +296,29 @@ d3.csv('data/data.csv', function (error, data) {
       };
     }
 
-    function getColor(the_data){
-        var value = the_data;
+    function getColor(the_data, set){
+        // if(set)
+        var value = the_data,
+            bands = {
+                MajorExp9815: {
+                    one: 10000000,
+                    two: 1000000,
+                    three: 0
+                },
+                TotalAllotandPlan1621: {
+                    one: 1000000,
+                    two: 500000,
+                    three: 0
+                },
+                LifetimeBudget: {
+                    one: 10000000,
+                    two: 1000000,
+                    three: 0
+                }
+            };
+
+
+
         if(value > 10000000){ // 10 MILLION
             return '#77cc00';
         } else if(value < 10000000 && value > 1000000){
@@ -252,3 +350,18 @@ d3.csv('data/data.csv', function (error, data) {
       return camelStr.join(' ');
     }
 });
+// }
+
+// School
+// Agency
+// Ward
+// ProjectType   (Project)
+// YrComplete (IF NA then = blank)  Yr
+// MajorExp9815  (Total Spent)
+// SpentPerSqFt  (Spent per SqFt)
+// SpentPerMaxOccupancy (Spent per Capacity)
+// FeederHS (IF Level is = to ES, MS, ES/MS, PK3/K THEN feeder = FeederHS) (Feeder HS)
+
+// MajorExp9815
+// SpentPerMaxOccupancy
+// SpentPerSqFt

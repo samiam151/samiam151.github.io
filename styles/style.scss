@@ -27,9 +27,11 @@ text {
 }
 
 #tooltip {
-   position: absolute;
+   position: fixed;
+   left: 950px;
+   top: 200px;
    width: 200px;
-   height: 150px;
+   height: 250px;
    padding: 10px;
    background-color: $cerulean;
    border-radius: 5px;
@@ -42,10 +44,20 @@ text {
    }
 
    &.hidden {
-      display: none;
+      // display: none;
    }
 }
 
+.color {
+   fill: 'grey';
+}
+
+#budget_state {
+   margin-top: -20px;
+}
+// #school {
+//    font-size: 12px;
+// }
 // #school {
 //    font-size: 12px;
 // }
